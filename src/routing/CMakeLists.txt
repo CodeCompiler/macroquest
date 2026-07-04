@@ -60,6 +60,9 @@ set_target_properties(routing PROPERTIES FOLDER "core/libraries")
 # ---------------------------------------------------------------------
 target_Common_props(routing)
 
+# Network.cpp uses C++20 std::unordered_set::contains; ensure C++20 on this target
+target_compile_features(routing PRIVATE cxx_std_20)
+
 # ---------------------------------------------------------------------
 # Protobuf generation
 # ---------------------------------------------------------------------

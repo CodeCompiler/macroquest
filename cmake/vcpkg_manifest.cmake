@@ -220,7 +220,7 @@ function(create_vcpkg_overlays)
 
     # Track all created ports for final manifest
     # The initial ports list are the ports that are used solution-wide, so should be included in the solution
-    set(ALL_PORTS spdlog fmt detours)
+    set(ALL_PORTS spdlog fmt detours abseil utf8-range)
     set(PORTS_DIRS "")
     foreach(PORT ${OVERLAY_PORTS})
         foreach(PATH ${VCPKG_OVERLAY_PORTS_PATH})

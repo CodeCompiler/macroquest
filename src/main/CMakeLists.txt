@@ -86,7 +86,6 @@ set(MQ2Main_HEADERS
     "emu/EmuExtensions.h"
     "GraphicsEngine.h"
     "GraphicsResources.h"
-    "ImGuiAlphaMask.h"
     "ImGuiBackend.h"
     "ImGuiManager.h"
     "Logging.h"

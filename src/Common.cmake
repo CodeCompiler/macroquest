@@ -145,7 +145,7 @@ macro(target_Common_props TARGET_NAME)
         "/GS-"
         "$<$<CONFIG:Debug>:/Od>"
         "/MP"
-        "/std:c++17"
+        "/std:c++20"
     )
     
     # ---------------------------------------------------------------------
@@ -155,6 +155,11 @@ macro(target_Common_props TARGET_NAME)
     target_link_directories(${TARGET_NAME} PRIVATE
         "${CMAKE_BINARY_DIR}/bin"
         "${CMAKE_BINARY_DIR}/lib"
+        # vcpkg static lib dirs, per-config: resolves bare /DEFAULTLIB directives
+        # (e.g. absl_base) baked into protobuf-compiled objects that aren't passed
+        # by full path. Without this the Release link fails LNK1104 absl_base.lib.
+        "$<$<CONFIG:Debug>:${CMAKE_BINARY_DIR}/vcpkg_installed/${VCPKG_TARGET_TRIPLET}/debug/lib>"
+        "$<$<NOT:$<CONFIG:Debug>>:${CMAKE_BINARY_DIR}/vcpkg_installed/${VCPKG_TARGET_TRIPLET}/lib>"
 #        "${PlatformLibraryDirectories}"
 #        "${VCPKG_LibraryDirs}"
 #        "${MQLibDir}"

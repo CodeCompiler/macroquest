@@ -483,7 +483,7 @@ function New-Platform {
     $cmakeArgs = @(
         "--fresh",
         "-B", $BuildDir,
-        "-G", "Visual Studio 17 2022",
+        "-G", "Visual Studio 18 2026",
         "-A", $Arch,
         "-DMQ_REGENERATE_SOLUTION=ON"
     )

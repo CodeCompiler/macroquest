@@ -4180,7 +4180,7 @@ static void WindowProperties_SpellDisplayWindow(CSidlScreenWnd* pSidlWindow, ImG
 	ColumnText("Display Type", "%d", pWindow->SpellDisplayType);
 	ColumnElapsedTimestamp("Last Update Time", pWindow->LastUpdateTime - EQGetTime());
 #if IS_LIVE_CLIENT
-	ColumnText("Unknown", "%d", pWindow->Unknown);
+	// 'Unknown' field was identified/removed in the Jun 24 2026 eqlib - inspector line dropped
 #endif
 }
 

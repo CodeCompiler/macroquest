@@ -1,3 +1,22 @@
 
 # ignore user plugins by default - remove to track your plugins in git
 /*
+!.gitignore
+# track OUR two plugins' SOURCE only:
+!/MQ2FuncCat/
+!/MQ2PacketLab/
+# ...but never their build output or local token config:
+MQ2FuncCat/**/*.dll
+MQ2FuncCat/**/*.obj
+MQ2FuncCat/**/*.pdb
+MQ2FuncCat/**/*.ini
+MQ2FuncCat/x64/
+MQ2FuncCat/**/Release/
+MQ2FuncCat/**/Debug/
+MQ2PacketLab/**/*.dll
+MQ2PacketLab/**/*.obj
+MQ2PacketLab/**/*.pdb
+MQ2PacketLab/**/*.ini
+MQ2PacketLab/x64/
+MQ2PacketLab/**/Release/
+MQ2PacketLab/**/Debug/
