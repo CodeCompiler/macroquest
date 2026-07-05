@@ -392,7 +392,7 @@ MQDataAPI::EvaluateResult MQDataAPI::EvaluateMacroDataMember(MQ2Type* type, MQVa
 
 	if (checkFirst)
 	{
-		if (!type->FindMember(Member) && !type->InheritedMember(Member))
+		if (!type->FindMember(Member) && !type->FindMethod(Member) && !type->InheritedMember(Member))
 		{
 			return EvaluateResult::NotFound;
 		}
@@ -406,7 +406,7 @@ MQDataAPI::EvaluateResult MQDataAPI::EvaluateMacroDataMember(MQ2Type* type, MQVa
 		return EvaluateResult::Success;
 	}
 
-	if (!type->FindMember(Member) && !type->InheritedMember(Member))
+	if (!type->FindMember(Member) && !type->FindMethod(Member) && !type->InheritedMember(Member))
 	{
 		return EvaluateResult::NotFound;
 	}
