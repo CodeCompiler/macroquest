@@ -4055,21 +4055,28 @@ void DoTimedCmd(PlayerClient* pChar, const char* szLine)
 	if (!szRest[0])
 		return;
 
-	int delay = GetIntFromString(szArg, 0);
-	size_t len = strlen(szArg);
+	// Parse the number, then interpret the unit from the exact remainder of the string.
+	// No suffix means deciseconds, matching the historical behavior.
+	int value = 0;
+	const std::from_chars_result result = std::from_chars(szArg, szArg + strlen(szArg), value);
+	const std::string_view suffix = result.ptr;
 
-	// Measured in deciseconds...
-	if (::tolower(szArg[len - 1]) == 'm')
-		delay *= 600;
-	else if (::tolower(szArg[len - 1]) == 's')
+	int delayMs;
+	if (suffix.empty())
+		delayMs = value * 100;
+	else if (ci_equals(suffix, "ms"))
+		delayMs = value;
+	else if (ci_equals(suffix, "s"))
+		delayMs = value * 1000;
+	else if (ci_equals(suffix, "m"))
+		delayMs = value * 60000;
+	else
 	{
-		if (len > 2 && ::tolower(szArg[len - 2]) == 'm')
-			delay /= 100;
-		else
-			delay *= 10;
+		SyntaxError("Usage: /timed <deciseconds|#s|#m|#ms> <command>");
+		return;
 	}
 
-	pCommandAPI->TimedCommand(szRest, delay * 100);
+	pCommandAPI->TimedCommand(szRest, delayMs);
 }
 
 void ClearErrorsCmd(PlayerClient* pChar, const char* szLine)
