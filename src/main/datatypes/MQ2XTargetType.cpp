@@ -103,11 +103,13 @@ bool MQ2XTargetType::ToString(MQVarPtr VarPtr, char* Destination)
 		&& xts->XTargetSlotStatus != eXTSlotEmpty)
 	{
 		strcpy_s(Destination, MAX_STRING, xts->Name);
-		return true;
+	}
+	else
+	{
+		strcpy_s(Destination, MAX_STRING, "NULL");
 	}
 
-	strcpy_s(Destination, MAX_STRING, "NULL");
-	return false;
+	return true;
 }
 
 bool MQ2XTargetType::Downcast(const MQVarPtr& fromVar, MQVarPtr& toVar, MQ2Type* toType)
