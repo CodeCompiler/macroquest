@@ -3741,23 +3741,8 @@ bool MQ2CharacterType::GetMember(MQVarPtr VarPtr, const char* Member, char* Inde
 		return true;
 
 	case CharacterMembers::NumGems:
-		Dest.DWord = 8;
-		if (pCastSpellWnd)
-		{
-			char szWnd[32] = { 0 };
-			for (int i = 8; i < NUM_SPELL_GEMS; i++)
-			{
-				sprintf_s(szWnd, "CSPW_Spell%d", i);
-				if (CXWnd* wnd = pCastSpellWnd->GetChildItem(szWnd))
-				{
-					if (wnd->IsVisible() == 1)
-					{
-						Dest.DWord++;
-					}
-				}
-			}
-		}
-
+		// Number of available spell gems: 8 base plus any from SPA_ADD_SPELL_SLOTS (items, AA, buffs).
+		Dest.DWord = std::min(8 + pLocalPC->TotalEffect(SPA_ADD_SPELL_SLOTS, true, 0, true, true), NUM_SPELL_GEMS);
 		Dest.Type = pIntType;
 		return true;
 
