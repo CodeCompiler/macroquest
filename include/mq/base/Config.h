@@ -363,8 +363,9 @@ inline std::string GetCreateMacroQuestIni(const std::filesystem::path& pathMQRoo
 			// If a custom MQIniPath was set but doesn't exist, warn the user since settings will not be loaded from it
 			if (pathMQini != pathFoundIni && !std::filesystem::exists(pathMQini, ec))
 			{
-				const std::string strTemp = "MQIniPath set in " + pathFoundIni.string() + " could not be found: " + pathMQini.string();
-				MessageBox(nullptr, strTemp.c_str(), "MacroQuest", MB_OK);
+				char szMessage[MAX_PATH * 2];
+				sprintf_s(szMessage, "MQIniPath set in %s could not be found: %s", pathFoundIni.string().c_str(), pathMQini.string().c_str());
+				MessageBox(nullptr, szMessage, "MacroQuest", MB_OK);
 			}
 		}
 
