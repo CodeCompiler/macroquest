@@ -617,6 +617,14 @@ bool MQ2SpawnType::GetMember(SPAWNINFO* pSpawn, const char* Member, char* Index,
 				return true;
 		}
 
+		// The type of invisibility can only be determined for the local player.
+		// For other spawns, the client only knows whether they are invis at all.
+		if (pSpawn != pLocalPlayer)
+		{
+			Dest.Set(pSpawn->HideMode != 0);
+			return true;
+		}
+
 		switch (mode)
 		{
 		case InvisModes::Any:
