@@ -4044,7 +4044,7 @@ void DoTimedCmd(PlayerClient* pChar, const char* szLine)
 {
 	if (!szLine[0])
 	{
-		SyntaxError("Usage: /timed <deciseconds> <command>");
+		SyntaxError("Usage: /timed <deciseconds|#s|#m|#ms> <command>");
 		return;
 	}
 
@@ -4055,7 +4055,21 @@ void DoTimedCmd(PlayerClient* pChar, const char* szLine)
 	if (!szRest[0])
 		return;
 
-	pCommandAPI->TimedCommand(szRest, GetIntFromString(szArg, 0) * 100);
+	int delay = GetIntFromString(szArg, 0);
+	size_t len = strlen(szArg);
+
+	// Measured in deciseconds...
+	if (::tolower(szArg[len - 1]) == 'm')
+		delay *= 600;
+	else if (::tolower(szArg[len - 1]) == 's')
+	{
+		if (len > 2 && ::tolower(szArg[len - 2]) == 'm')
+			delay /= 100;
+		else
+			delay *= 10;
+	}
+
+	pCommandAPI->TimedCommand(szRest, delay * 100);
 }
 
 void ClearErrorsCmd(PlayerClient* pChar, const char* szLine)
