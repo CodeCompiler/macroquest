@@ -1,0 +1,25 @@
+{
+  "_comment": "Copy to sentinel.config.json and edit. Every key is optional; these are the defaults.",
+
+  "watch_eq_exe": true,
+  "eq_exe": "",
+
+  "inbox_dir": "inbox",
+
+  "watch_url": "",
+
+  "auto_analyze": true,
+  "auto_apply": false,
+  "apply_min_coverage": 0.92,
+
+  "auto_build": false,
+  "build_command": "",
+
+  "archive_clients": true,
+
+  "webhook_env": "SENTINEL_WEBHOOK",
+  "webhook_file": "webhook.txt",
+
+  "min_free_gb": 10,
+  "history_keep": 200
+}

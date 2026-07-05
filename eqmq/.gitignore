@@ -20,3 +20,11 @@ __pycache__/
 out/
 deep/
 versions/
+# sentinel runtime (per-deployment state, never source)
+sentinel/inbox/
+sentinel/quarantine/
+sentinel/logs/
+sentinel/*.lock
+sentinel/sentinel.history.jsonl
+webhook.txt
+!sentinel/sentinel.config.example.json

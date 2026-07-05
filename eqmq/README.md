@@ -62,6 +62,32 @@ for a human — by design.
 | `eqmq_paths.py` | portable path resolver (Ghidra/JDK/EQ/MQ), so the kit runs anywhere |
 | `jsonstore.py` | crash-safe atomic JSON writes (protects the knowledge base) |
 
+## Sentinel — the patch-day watchdog (`sentinel/`)
+
+Sentinel is the "something changed → act" layer that makes the patcher run itself on a VPS.
+A cheap scheduled tick (every 10 min) watches for a new client build three ways — the local
+EQ install's `eqgame.exe` hash, any `*.exe` dropped into `sentinel/inbox/`, and an optional
+URL fingerprint ("patch is live" alert). On detection it quarantines a copy, runs the
+analyze/relocate pipeline above, and **gates the apply behind a coverage threshold**
+(default 92%, on top of the toolkit's own >10%-missing abort). Every stage — detected,
+analyzing, gated, applied, failed — is posted to a Discord webhook, and each processed
+client is archived with its header + coverage report.
+
+```
+python sentinel.py tick          # what the scheduled task runs (Install-Sentinel.ps1)
+python sentinel.py status        # last tick / baselines / pending build
+python sentinel.py approve       # human sign-off on a gated relocation
+python sentinel.py simulate <exe>  # end-to-end rehearsal on any client binary
+```
+
+Safety defaults: `auto_apply=false` (analyze + report; a human approves), lockfile so ticks
+can't stack Ghidra runs, free-disk check before analysis, crash-safe state via `jsonstore`.
+Flip `auto_apply`/`auto_build` in `sentinel.config.json` for a fully hands-off patch day.
+
+**→ Full from-scratch deployment guide: [VPS-SETUP.md](VPS-SETUP.md)** — blank Windows VPS
+to self-running platform (prereqs, path config, baseline seeding, Sentinel install, Discord
+wiring, patch-day runbook, hardening).
+
 ## The catalog pipeline (`pipeline/`)
 Turns the Ghidra exports into a browsable, self-improving catalog:
 
