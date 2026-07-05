@@ -701,6 +701,31 @@ static HeartbeatState Heartbeat()
 
 	UpdateMQ2SpawnSort();
 
+	// Switches are deallocated when the zone unloads, which can happen before we
+	// detect that we are zoning. If the switch target is no longer in the switch
+	// manager, clear it so that we never hold a dangling pointer. See #857.
+	if (pSwitchTarget)
+	{
+		bool switchExists = false;
+
+		if (pSwitchMgr)
+		{
+			for (int i = 0; i < pSwitchMgr->NumEntries; ++i)
+			{
+				if (pSwitchMgr->Switches[i] == pSwitchTarget)
+				{
+					switchExists = true;
+					break;
+				}
+			}
+		}
+
+		if (!switchExists)
+		{
+			SetSwitchTarget(nullptr);
+		}
+	}
+
 	DebugTry(DrawHUD());
 	DebugTry(PulseMQ2AutoInventory());
 
