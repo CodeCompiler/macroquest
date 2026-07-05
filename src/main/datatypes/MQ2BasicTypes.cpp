@@ -492,6 +492,9 @@ bool MQ2StringType::GetMember(MQVarPtr VarPtr, const char* Member, char* Index, 
 			if (Len == 0)
 				return false;
 
+			if (Len > MAX_STRING - 1)
+				Len = MAX_STRING - 1;
+
 			if (Len < 0)
 			{
 				Len = -Len;
@@ -511,10 +514,6 @@ bool MQ2StringType::GetMember(MQVarPtr VarPtr, const char* Member, char* Index, 
 			}
 			else
 			{
-				// Clamp Len to the source length. Otherwise strlen(pStart) - Len underflows
-				// (size_t wrap), and although pStart is clamped back to szString below, Len
-				// stays huge and memmove copies Len + 1 bytes past the end of the fixed
-				// DataTypeTemp buffer -> memory corruption. Mirrors the .Left handling above.
 				if (static_cast<size_t>(Len) > StrLen)
 					Len = static_cast<int>(StrLen);
 
