@@ -516,6 +516,24 @@ void StripMQChat(const char* in, char* out)
 	StripMQChat(std::string_view{ in }, out);
 }
 
+// Removes stml anchor tags (for example <a Faction="251">Frogloks of Guk</a>) from the
+// string in-place, keeping the inner text. Faction adjustment messages contain these tags
+// instead of \x12 links, so CleanItemTags does not remove them.
+void StripStmlAnchorTags(char* szText)
+{
+	while (char* tagStart = strstr(szText, "<a "))
+	{
+		char* tagEnd = strchr(tagStart, '>');
+		char* closeTag = tagEnd != nullptr ? strstr(tagEnd + 1, "</a>") : nullptr;
+		if (closeTag == nullptr)
+			break;
+
+		// Remove the closing tag first so the earlier positions remain valid.
+		memmove(closeTag, closeTag + 4, strlen(closeTag + 4) + 1);
+		memmove(tagStart, tagEnd + 1, strlen(tagEnd + 1) + 1);
+	}
+}
+
 static bool ReplaceSafely(char** out, size_t* pchar_out_string_position, char chr, size_t maxlen)
 {
 	if ((*pchar_out_string_position) + 1 > maxlen)
