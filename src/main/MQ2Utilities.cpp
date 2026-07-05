@@ -521,17 +521,40 @@ void StripMQChat(const char* in, char* out)
 // instead of \x12 links, so CleanItemTags does not remove them.
 void StripStmlAnchorTags(char* szText)
 {
-	while (char* tagStart = strstr(szText, "<a "))
-	{
-		char* tagEnd = strchr(tagStart, '>');
-		char* closeTag = tagEnd != nullptr ? strstr(tagEnd + 1, "</a>") : nullptr;
-		if (closeTag == nullptr)
-			break;
+	// Fast out: chat lines almost never contain '<' at all. Only rewrite when the
+	// text actually holds an anchor pair.
+	const char* firstBracket = strchr(szText, '<');
+	if (firstBracket == nullptr)
+		return;
 
-		// Remove the closing tag first so the earlier positions remain valid.
-		memmove(closeTag, closeTag + 4, strlen(closeTag + 4) + 1);
-		memmove(tagStart, tagEnd + 1, strlen(tagEnd + 1) + 1);
+	const char* firstTag = strstr(firstBracket, "<a ");
+	if (firstTag == nullptr || strstr(firstTag + 3, "</a>") == nullptr)
+		return;
+
+	// Single rewrite pass: copy the string over itself, dropping the tags.
+	char* dst = szText + (firstTag - szText);
+	const char* src = firstTag;
+
+	while (*src)
+	{
+		if (src[0] == '<' && src[1] == 'a' && src[2] == ' ')
+		{
+			if (const char* tagEnd = strchr(src + 3, '>'))
+			{
+				src = tagEnd + 1;
+				continue;
+			}
+		}
+		else if (src[0] == '<' && src[1] == '/' && src[2] == 'a' && src[3] == '>')
+		{
+			src += 4;
+			continue;
+		}
+
+		*dst++ = *src++;
 	}
+
+	*dst = 0;
 }
 
 static bool ReplaceSafely(char** out, size_t* pchar_out_string_position, char chr, size_t maxlen)
