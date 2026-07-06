@@ -15,11 +15,17 @@ field count, and (often) size. Two tiers come out:
 
 Run:  python build_structheaders.py    (reads C:\\mmoplugins\\structures.json)
 """
-import os, sys, re, json
-sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import os, sys, re, json, shutil, tempfile
+_HERE = os.path.dirname(os.path.abspath(__file__))
+# jsonstore.py lives in offset-toolkit/ in the source tree but is deployed FLAT next to this script
+# in C:\mmoplugins. Put both on the path so `import jsonstore` resolves either way.
+sys.path.insert(0, os.path.join(_HERE, "..", "offset-toolkit"))
+sys.path.insert(0, _HERE)
 import jsonstore
 
-MMO = r"C:\mmoplugins"
+# Portability: the catalog root is deployment-relative, not a fixed C: path. Honor an env override
+# so the emitter runs unchanged on the VPS and on a dev box.
+MMO = os.environ.get("EQMQ_MMO") or r"C:\mmoplugins"
 SRC = os.path.join(MMO, "structures.json")
 OUT_LAYOUTS = os.path.join(MMO, "eqstructs_layouts.h")
 OUT_FULL    = os.path.join(MMO, "eqstructs_full.h")
@@ -62,6 +68,27 @@ def _size_int(s):
     return None
 
 
+def _atomic_write_text(path, text):
+    """Crash-safe text write for the generated headers: temp-file + fsync + os.replace, keeping the
+    prior header at path + '.bak'. Mirrors jsonstore.atomic_dump so a crash / power-loss mid-write
+    can never leave a truncated eqstructs_*.h (which a plugin dev would #include)."""
+    path = os.path.abspath(path)
+    d = os.path.dirname(path) or "."
+    os.makedirs(d, exist_ok=True)
+    if os.path.exists(path):
+        try: shutil.copy2(path, path + ".bak")
+        except Exception: pass
+    fd, tmp = tempfile.mkstemp(prefix=os.path.basename(path) + ".", suffix=".tmp", dir=d)
+    try:
+        with os.fdopen(fd, "w", encoding="utf-8") as f:
+            f.write(text); f.flush(); os.fsync(f.fileno())
+        os.replace(tmp, path); tmp = None
+    finally:
+        if tmp and os.path.exists(tmp):
+            try: os.remove(tmp)
+            except Exception: pass
+
+
 def main():
     data = jsonstore.safe_load(SRC, default={"structs": {}})
     structs = data.get("structs", {})
@@ -76,9 +103,16 @@ def main():
         code = sanitize((e.get("code") or "").rstrip())
         if not code: continue
         L.append(code if code.endswith(";") else code + ";")
+        # DRIFT DETECTION: assert the recovered size so a struct whose layout CHANGED on patch day
+        # fails the plugin build loudly instead of compiling with silently-wrong offsets.
+        sz = _size_int(e.get("size"))
+        if sz and re.match(r"^[A-Za-z_]\w*$", name):
+            L.append('#ifndef EQSTRUCTS_NO_DRIFT_CHECK')
+            L.append('static_assert(sizeof(%s) == 0x%X, "%s size drifted from catalogued 0x%X");'
+                     % (name, sz, name, sz))
+            L.append('#endif')
         L.append("")
-    with open(OUT_LAYOUTS, "w", encoding="utf-8") as f:
-        f.write("\n".join(L))
+    _atomic_write_text(OUT_LAYOUTS, "\n".join(L))   # crash-safe: temp + fsync + os.replace (+ .bak)
 
     # --- tier 2: full indexed reference (eqlib + ghidra) ---
     F = ["// eqstructs_full -- ALL %d recovered structures/classes (reference).\n// eqlib-sourced blocks reference the wider eqlib tree (not standalone-compilable);\n// Ghidra layouts are self-contained (see eqstructs_layouts.h for the compilable tier).\n#pragma once\n" % len(structs)]
@@ -94,8 +128,7 @@ def main():
         F.append("// ---- %s%s  (%s) ----" % (name, ("  size 0x%X" % sz) if sz else "", e.get("file", "")))
         F.append(code if code.endswith(";") else code + ";")
         F.append("")
-    with open(OUT_FULL, "w", encoding="utf-8") as f:
-        f.write("\n".join(F))
+    _atomic_write_text(OUT_FULL, "\n".join(F))   # crash-safe: temp + fsync + os.replace (+ .bak)
 
     print("structheaders: %d structs (%d ghidra layouts) -> %s (%d KB) + %s (%d KB)"
           % (len(structs), len(ghidra),

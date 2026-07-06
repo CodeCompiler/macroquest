@@ -47,8 +47,21 @@ public class ghidra_deep_export extends GhidraScript {
 
     private String jsonEsc(String s) {
         if (s == null) return "";
-        return s.replace("\\", "\\\\").replace("\"", "\\\"")
-                .replace("\r", "").replace("\n", "\\n").replace("\t", "  ");
+        StringBuilder b = new StringBuilder(s.length() + 8);
+        for (int i = 0; i < s.length(); i++) {
+            char ch = s.charAt(i);
+            switch (ch) {
+                case '\\': b.append("\\\\"); break;
+                case '"':  b.append("\\\""); break;
+                case '\n': b.append("\\n");  break;
+                case '\r':                    break;   // drop CR: JSON stays single-line
+                case '\t': b.append("  ");    break;   // tab -> 2 spaces (prior behavior)
+                default:
+                    if (ch < 0x20) b.append(String.format("\\u%04x", (int) ch));  // escape all C0 controls
+                    else b.append(ch);
+            }
+        }
+        return b.toString();
     }
 
     @Override
@@ -73,28 +86,35 @@ public class ghidra_deep_export extends GhidraScript {
         boolean firstS = true;
         Iterator<Structure> sit = dtm.getAllStructures();
         while (sit.hasNext()) {
-            Structure str = sit.next();
-            String name = str.getName();
-            int len = str.getLength();
-            StringBuilder fb = new StringBuilder();
-            int nc = str.getNumComponents();
-            for (int i = 0; i < nc; i++) {
-                DataTypeComponent c = str.getComponent(i);
-                if (c == null) continue;
-                String fn = c.getFieldName();
-                DataType cdt = c.getDataType();
-                String tn = (cdt != null) ? cdt.getName() : "?";
-                if (i > 0) fb.append(",");
-                fb.append("{\"off\":").append(c.getOffset())
-                  .append(",\"name\":\"").append(jsonEsc(fn == null ? "" : fn))
-                  .append("\",\"type\":\"").append(jsonEsc(tn))
-                  .append("\",\"size\":").append(c.getLength()).append("}");
+            try {
+                Structure str = sit.next();
+                String name = str.getName();
+                int len = str.getLength();
+                StringBuilder fb = new StringBuilder();
+                int nc = str.getNumComponents();
+                boolean wroteField = false;
+                for (int i = 0; i < nc; i++) {
+                    DataTypeComponent c = str.getComponent(i);
+                    if (c == null) continue;
+                    String fn = c.getFieldName();
+                    DataType cdt = c.getDataType();
+                    String tn = (cdt != null) ? cdt.getName() : "?";
+                    if (wroteField) fb.append(",");
+                    wroteField = true;
+                    fb.append("{\"off\":").append(c.getOffset())
+                      .append(",\"name\":\"").append(jsonEsc(fn == null ? "" : fn))
+                      .append("\",\"type\":\"").append(jsonEsc(tn))
+                      .append("\",\"size\":").append(c.getLength()).append("}");
+                }
+                if (!firstS) sw.write(",\n");
+                firstS = false;
+                sw.write("  \"" + jsonEsc(name) + "\": {\"size\":" + len + ",\"fields\":[" + fb.toString() + "]}");
+                nStructs++;
+                if (len > 0) nSized++;
+            } catch (Exception ex) {
+                // one malformed Structure must not truncate the whole export -> skip it, keep going
+                println("ghidra_deep_export: WARN skipped a struct: " + ex);
             }
-            if (!firstS) sw.write(",\n");
-            firstS = false;
-            sw.write("  \"" + jsonEsc(name) + "\": {\"size\":" + len + ",\"fields\":[" + fb.toString() + "]}");
-            nStructs++;
-            if (len > 0) nSized++;
         }
         sw.write("\n}\n");
         sw.close();
