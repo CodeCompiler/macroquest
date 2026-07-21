@@ -59,6 +59,59 @@ def detect_stamp(exe):
     return {"date": date, "time": time, "time_candidates": times[:10], "client_num": client_num}
 
 
+def _read_offsets(path):
+    """name -> int for every '#define <name> 0x...' in a header."""
+    out = {}
+    if path and os.path.exists(path):
+        for ln in open(path, encoding="utf-8", errors="replace"):
+            m = re.match(r'\s*#define\s+(\S+)\s+(0x[0-9A-Fa-f]+)', ln)
+            if m:
+                try: out[m.group(1)] = int(m.group(2), 16)
+                except ValueError: pass
+    return out
+
+
+def _derived_offset_pairs():
+    """Auto-discover the derived-offset guards in eqlib: static_assert(<A>_x - <B>_x == offsetof(...)).
+    Each such A is really pinst<B> + a struct member offset, so it can be reconstructed exactly."""
+    fallback = [("instEQZoneInfo_x", "pinstEverQuestInfo_x")]
+    gc = os.path.join(P.MQ_SRC, "src", "eqlib", "src", "game", "Globals.cpp") if getattr(P, "MQ_SRC", None) else None
+    if not gc or not os.path.exists(gc):
+        return fallback
+    txt = open(gc, encoding="utf-8", errors="replace").read()
+    pairs = re.findall(r'static_assert\(\s*(\w+_x)\s*-\s*(\w+_x)\s*==\s*offsetof', txt)
+    return pairs or fallback
+
+
+def reconcile_derived_offsets(new_header):
+    """Some offsets are DERIVED (a global that is really pinst<Base> + offsetof(member)). The heuristic
+    data relocation can land them at a wrong, often non-aligned address, which trips the eqlib
+    static_assert and fails the build. Force each to new_base + the baseline's (derived - base) delta --
+    the struct member offset, stable unless the struct itself moved -- and warn when the relocated value
+    disagreed, so a genuine struct change is still surfaced for a human."""
+    base = _read_offsets(getattr(P, "EQGAME_H", None))   # current (baseline) header, pre-apply
+    new  = _read_offsets(new_header)
+    if not base or not new:
+        return 0
+    lines = open(new_header, encoding="utf-8", errors="replace").read().split("\n")
+    fixed = 0
+    for A, B in _derived_offset_pairs():
+        if A in base and B in base and A in new and B in new:
+            forced = new[B] + (base[A] - base[B])
+            if new[A] != forced:
+                print("[reconcile] %s relocated 0x%X but its derived value is 0x%X (= %s + 0x%X); using "
+                      "the derived value. If in-game data via %s looks wrong, verify the struct didn't move."
+                      % (A, new[A], forced, B, base[A] - base[B], A))
+                for i, ln in enumerate(lines):
+                    m = re.match(r'(\s*#define\s+%s\s+)0x[0-9A-Fa-f]+(.*)$' % re.escape(A), ln)
+                    if m:
+                        lines[i] = "%s0x%X%s" % (m.group(1), forced, m.group(2)); fixed += 1; break
+    if fixed:
+        open(new_header, "w", encoding="utf-8").write("\n".join(lines))
+        print("[reconcile] corrected %d derived offset(s) in %s" % (fixed, os.path.basename(new_header)))
+    return fixed
+
+
 def analyze(exe):
     if not os.path.exists(exe):
         print("[update] exe not found: %s" % exe); sys.exit(2)
@@ -97,6 +150,9 @@ def analyze(exe):
     # normalize to out\eqgame_new.h
     if produced and os.path.exists(produced):
         shutil.copy2(produced, os.path.join(P.OUT, "eqgame_new.h"))
+        # derived offsets (e.g. instEQZoneInfo = pinstEverQuestInfo + offsetof) can mis-relocate to a
+        # non-aligned address and break the build's static_assert; reconstruct from the struct delta.
+        reconcile_derived_offsets(os.path.join(P.OUT, "eqgame_new.h"))
         print("[update] proposed header -> %s" % os.path.join(P.OUT, "eqgame_new.h"))
         print("[update] REVIEW out\\coverage_report.csv (or offset_report.csv), then 'apply'.")
     else:
