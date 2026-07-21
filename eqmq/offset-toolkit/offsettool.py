@@ -72,7 +72,24 @@ def snapshot(label, src=None):
     env = dict(os.environ)
     env["JAVA_HOME"] = P.JDK21
     env["PATH"] = os.path.join(P.JDK21, "bin") + os.pathsep + env.get("PATH", "")
-    rc = subprocess.call(cmd, env=env)
+    # Fail loud if the resolved JDK is broken/half-installed (e.g. mid auto-update): handing Ghidra a
+    # bad JAVA_HOME made its launcher hang forever on the interactive JDK prompt. Abort clearly.
+    java_exe = os.path.join(P.JDK21, "bin", "java.exe")
+    if not os.path.exists(java_exe):
+        print("[snapshot] ABORT: java.exe not found at %s (JDK21=%s). The JDK may be mid-update or "
+              "moved; refusing to start Ghidra (it would hang on the JDK prompt)." % (java_exe, P.JDK21))
+        sys.exit(6)
+    try:
+        _to = int(os.environ.get("EQMQ_GHIDRA_TIMEOUT_SEC", "10800"))   # 3h backstop, overridable
+    except (TypeError, ValueError):
+        _to = 10800
+    # stdin=DEVNULL so a Ghidra launcher prompt (JDK path / 'project in use') gets EOF and aborts in
+    # seconds instead of hanging with no console; timeout kills a genuinely runaway analysis.
+    try:
+        rc = subprocess.call(cmd, env=env, stdin=subprocess.DEVNULL, timeout=_to)
+    except subprocess.TimeoutExpired:
+        print("[snapshot] ABORT: Ghidra exceeded %ds hard timeout; treating as failed." % _to)
+        rc = 124
     if rc != 0:
         print("[snapshot] Ghidra returned %d" % rc)
     if os.path.exists(funcs_csv):
